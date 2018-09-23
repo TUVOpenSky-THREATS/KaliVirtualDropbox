@@ -2,9 +2,9 @@
 
 **Kali ISO of DOOM** + **autossh & stunnel** + **Kali C2 Server** = **KaliVirtualDropbox**  
 
-Create a Kali Virtual Dropbox Appliance (ISO) that auto installs and calls home to your C2 server, without any user interaction, and using unique shared secrets 
+Create a Kali virtual dropbox appliance (ISO) to assist with remote Vulnerability Assessments and Penetratino tests that auto installs without any user interaction, and , and calls home to your C2 server using unique shared secrets.  
 
-##Usage
+## Usage
 
 1) Stand up an engagement specific Kali instance/VM
 1) Open up 443/tcp to your instance/VM from the outside
