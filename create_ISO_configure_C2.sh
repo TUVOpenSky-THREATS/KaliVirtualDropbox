@@ -239,9 +239,9 @@ ask_for_nessus_path() {
     echo ""
     echo "Almost time to build the image!  Do you have a nessus deb you want to add to the ISO?"
     read -e -p "If yes, specify the location. If no, hit enter: " NESSUS_PATH
-    if [ -n "NESSUS_PATH" ]; then
+    if [ -n "$NESSUS_PATH" ]; then
         if [ -f $NESSUS_PATH ]; then
-            #got build errors, but amazingly someone figurd out how and posted it on github.
+            #got build errors, but amazingly someone figured out how and posted it on github.
             #Turns out the nessus package name is capitalized and for the iso it all needs to be lowercase
             #https://gist.github.com/kafkaesqu3/81f320ebfc8583603c679222edc464ac
             mkdir temp
@@ -251,11 +251,12 @@ ask_for_nessus_path() {
             cp nessus.deb /opt/build/kali-config/common/packages.chroot/
             return
         else
-            echo "You typed something, but it wasnt a file!"
+            echo "You typed something, but it wasn't a file! Try again?"
             ask_for_nessus_path
         fi
     else
         echo "Skipping nessus addition to ISO image"
+        echo
         return
     fi
 }
