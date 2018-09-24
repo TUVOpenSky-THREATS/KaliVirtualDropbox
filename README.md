@@ -24,10 +24,11 @@ Create a Kali virtual dropbox appliance (ISO) for use during remote Vulnerabilit
     1) *The ISO will be in /opt/build/images*
     1) *You can use [simple-https-server](https://gist.github.com/dergachev/7028596) or whatever you want to serve the file. If using simple-https server, make sure to host the private keys outside your temporary web root ;)*
 1) Your remote contact installs the ISO in a VM, bootable USB, or on hardware
-1) On the C2 host, with the randomly generated password provided by the script, or the ssh key located in /root/~.ssh/dropbox.key
+1) On the C2 host, SSH to your dropbox with the randomly generated password provided by the script OR the ssh key located in /root/~.ssh/dropbox.key
     ```
-    ssh root@localhost -p9999
+    ssh root@localhost -p9999 <then enter password> or, 
     sudo ssh root@localhost -p9999 -i /root/.ssh/dropbox.key
     ```
 1) Configure Nessus or anything else you want on the box 
+
 
