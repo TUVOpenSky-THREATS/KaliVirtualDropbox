@@ -22,6 +22,10 @@ ssh-keygen -b 2048 -t rsa -f "$SSH_KEY" -q -N ""
 #Lack of indents here are for readability of the HERE DOCUMENTS (EOF/EOSCRIPT)
 ##########################
 # If this script is being run on teh C2 server, just create the config files and drop them in the right places.
+
+SSH_PUBKEY_CONTENTS=`cat $SSH_KEY.pub`
+SSH_PRIVKEY_CONTENTS=`cat $SSH_KEY.pub`
+
 if [ "$IS_C2" == "True" ]; then
 #Create self signed cert for stunnel
 openssl req -new -x509 -keyout /etc/stunnel/stunnel.pem -out /etc/stunnel/stunnel.pem -days 365 -nodes -subj "/C=US" >/dev/null 2>&1
@@ -45,15 +49,12 @@ mkdir -p /home/autossh/.ssh/
 
 
 #Copy the public key that we are dropping on the client to the server and add it to the authorized keys file on the C2 server which is what allows the client to connect automatically to the server
-cat $SSH_KEY.pub >> /home/autossh/.ssh/authorized_keys
+echo "command="",port-forwarding,permitopen="127.0.0.1:9999"" $SSH_PUBKEY_CONTENTS >> /home/autossh/.ssh/authorized_keys
 cp $SSH_KEY ~/.ssh/dropbox.key
 
 
 # If this is being run on a server other than the C2 server, don't change the local server files, but create a script that the user can run on the C2 server
 else
-
-SSH_PUBKEY_CONTENTS=`cat $SSH_KEY.pub`
-SSH_PRIVKEY_CONTENTS=`cat $SSH_KEY.pub`
 
 cat << EOSCRIPT > c2_setup.sh
 echo "[+] Creating self signed cert for stunnel and saving it to /etc/stunnel/stunnel.pem"
@@ -77,7 +78,7 @@ adduser --disabled-password --gecos "" autossh
 mkdir -p /home/autossh/.ssh/
 
 echo "[+] Copying the dropbox pubkey into autossh's authorized keys so that the dropbox can log into this C2 server"
-echo $SSH_PUBKEY_CONTENTS >> /home/autossh/.ssh/authorized_keys
+echo "command="",port-forwarding,permitopen="127.0.0.1:9999"" $SSH_PUBKEY_CONTENTS >> /home/autossh/.ssh/authorized_keys
 echo "[+] Copying the dropbox's private key to ~/.ssh/dropbox.key so that you can ssh to the dropbox with a key if you want.
 echo $SSH_PRIVKEY_CONTENTS >> ~/.ssh/dropbox.key
 
@@ -143,7 +144,7 @@ cp "$SSH_KEY" /opt/build/kali-config/common/includes.chroot/root/.ssh/
 cp "$SSH_KEY".pub /opt/build/kali-config/common/includes.chroot/root/.ssh/
 
 #copy public key to authorized keys on the VM/dropbox so that we can ssh in to the VM/DropBox with the private key
-cp "$SSH_KEY".pub /opt/build/kali-config/common/includes.chroot/root/.ssh/authorized_keys
+cp "$SSH_KEY".pub  /opt/build/kali-config/common/includes.chroot/root/.ssh/authorized_keys
 
 #populate stunnel on client
 cat << EOF > /opt/build/kali-config/common/includes.chroot/etc/stunnel/stunnel.conf
