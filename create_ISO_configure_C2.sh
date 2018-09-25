@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 
+# https://askubuntu.com/questions/15853/how-can-a-script-check-if-its-being-run-as-root
+if [[ $EUID -ne 0 ]]; then
+   echo "This script must be run as root"
+   exit 1
+fi
+
 read -p "Is this your C2 server? (y/n): " IS_C2_ANSWER
 if [ "$IS_C2_ANSWER" == "y" ] || [ "$IS_C2_ANSWER" == "Y" ] || [ "$IS_C2_ANSWER" == "Yes" ] || [ "$IS_C2_ANSWER" == "yes" ]; then
 
@@ -50,7 +56,7 @@ mkdir -p /home/autossh/.ssh/
 
 
 #Copy the public key that we are dropping on the client to the server and add it to the authorized keys file on the C2 server which is what allows the client to connect automatically to the server
-echo "command="",port-forwarding,permitopen="127.0.0.1:9999"" $SSH_PUBKEY_CONTENTS >> /home/autossh/.ssh/authorized_keys
+echo "command=\"\"" $SSH_PUBKEY_CONTENTS >> /home/autossh/.ssh/authorized_keys
 cp $SSH_KEY ~/.ssh/dropbox.key
 
 
@@ -79,7 +85,7 @@ adduser --disabled-password --gecos "" autossh
 mkdir -p /home/autossh/.ssh/
 
 echo "[+] Copying the dropbox pubkey into autossh's authorized keys so that the dropbox can log into this C2 server"
-echo "command="",port-forwarding,permitopen="127.0.0.1:9999"" $SSH_PUBKEY_CONTENTS >> /home/autossh/.ssh/authorized_keys
+echo "command=\"\"" $SSH_PUBKEY_CONTENTS >> /home/autossh/.ssh/authorized_keys
 echo "[+] Copying the dropbox's private key to ~/.ssh/dropbox.key so that you can ssh to the dropbox with a key if you want.
 echo $SSH_PRIVKEY_CONTENTS >> ~/.ssh/dropbox.key
 
@@ -269,22 +275,35 @@ ask_for_nessus_path
 #This is the part that builds the ISO. THis is gonna take a while!
 cd /opt/build/
 /opt/build/build.sh --distribution kali-rolling --verbose
+mv /opt/build/images/kali-linux-rolling-amd64.iso /opt/build/images/KaliVirtualDropbox.iso
 clear
 echo ""
 if [ "$IS_C2" == "True" ]; then
-    echo "The root password on this ISO is: " $ROOT_PW
-    echo "The IP that your Kali Virtual Dropbox will reach out to is: " $C2IP
     echo ""
-    echo "On the C2 server:"
+    echo "  *******************************************************************"
+    echo "  *         Your custom Kali virtual dropbox ISO is ready!          *"
+    echo "  *******************************************************************"
     echo ""
-    echo "  1) The user autossh does not have a password set. To set it, type: sudo passwd autossh"
-    echo "  2) Your image is in /opt/build/images"
-    echo "  3) Serve it up with something like this: https://gist.github.com/dergachev/7028596"
+    echo "[+] The root password on this ISO is: " $ROOT_PW
+    echo "[+] The IP that your Kali Virtual Dropbox will reach out to is: " $C2IP
     echo ""
-    echo "That's it."
+    echo "[+] On the C2 server:"
     echo ""
-    echo "   The public ssh key has been added to /home/autossh/.ssh/authorized_keys for you"
-    echo "   The stunnel service has been configured and started"
+    echo "[+]   1) The user autossh does not have a password set."
+    echo "[+]      To set it, type: sudo passwd autossh (this is not required for the callback to work)"
+    echo "[+]   2) Your image can be found here: /opt/build/images/KaliVirtualDropbox.iso"
+    echo "[+]   3) Serve it up with something like simple-https-server: https://gist.github.com/dergachev/7028596"
+    echo ""
+    echo "[+] That's it. Now have your remote contact install the ISO on a VM, bootable USB, or on hardware."
+    echo "[+] Once the install is complete, the dropbox will reach out to the C2 server and create a tunnel"
+    echo "[+]  Note: This make take up to 5 min after boot"
+    echo ""
+    echo "[+] The public ssh key has been added to /home/autossh/.ssh/authorized_keys for you"
+    echo "[+] The stunnel service has been configured and started"
+    echo ""
+    echo "[+] SSH to your dropbox:"
+    echo "       With key:      sudo ssh root@localhost -p9999 -i /root/.ssh/dropbox.key"
+    echo "       With password: ssh root@localhost -p9999"
     echo ""
 else
     echo "  1) Copy the following script to the c2 server and run it: "
