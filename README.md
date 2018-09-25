@@ -5,7 +5,7 @@
 Create a Kali virtual dropbox appliance (ISO) for use during remote Vulnerability Assessments and Penetration tests that auto installs without any user interaction, and calls home to your C2 server using unique shared secrets.  
 
 ## Notes
-The most common use case is to run this script on an engagement specific Kali cloud instance (the C2 host). However, the script can be run on another host. In that case, this script creates another bash script (c2_setup.sh) that you need to transfer to and execute on your C2 host.   
+The most common use case is to run this script on an engagement specific Kali instance (the C2 host). However, the script can be run on another host. In that case, this script creates another bash script (c2_setup.sh) that you need to transfer to and execute on your C2 host.   
 
 
 
@@ -45,7 +45,7 @@ The most common use case is to run this script on an engagement specific Kali cl
     1) Starts stunnel (listens 443/tcp and redirects to 22/tcp locally)
     
 * SSH/User Configuration 
-    1) Creates a user [autossh] with no password 
+    1) Creates a user [autossh]  
     1) Creates ssh keypair for the autossh user
     1) Adds public key to authorized_keys for autossh  
     1) Private key is copied to ISO and is used by the Dropbox to connect to the C2
