@@ -104,7 +104,7 @@ C2IP=$1
 
 #If the IP was not sent via the command line, grab it from the aws metadata service
 if [ -z "$C2IP" ]; then
-	C2IP=`curl http://169.254.169.254/latest/meta-data/public-ipv4`
+	C2IP=`curl ifconfig.me`
 	echo $C2IP
 fi
 
