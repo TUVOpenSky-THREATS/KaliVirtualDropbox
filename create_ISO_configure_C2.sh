@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 
+# https://askubuntu.com/questions/15853/how-can-a-script-check-if-its-being-run-as-root
+if [[ $EUID -ne 0 ]]; then
+   echo "This script must be run as root"
+   exit 1
+fi
+
 read -p "Is this your C2 server? (y/n): " IS_C2_ANSWER
 if [ "$IS_C2_ANSWER" == "y" ] || [ "$IS_C2_ANSWER" == "Y" ] || [ "$IS_C2_ANSWER" == "Yes" ] || [ "$IS_C2_ANSWER" == "yes" ]; then
 
