@@ -40,13 +40,13 @@ The most common use case is to run this script on an engagement specific Kali in
 
 ## What the script does to your Kali C2 host
 * Stunnel Configuration
-    1) Creates a new ssl key for stunnel
-    1) Creates a config file for stunnel    
+    1) Creates a new ssl key for stunnel (/etc/stunnel/stunnel.pem)
+    1) Creates a config file for stunnel (/etc/stunnel/stunnel.conf)   
     1) Starts stunnel (listens 443/tcp and redirects to 22/tcp locally)
     
 * SSH/User Configuration 
-    1) Creates a user [autossh]  
-    1) Creates ssh keypair for the autossh user
+    1) Creates a user (autossh)  
+    1) Creates ssh keypair for the autossh user 
     1) Adds public key to authorized_keys for autossh  
     1) Private key is copied to ISO and is used by the Dropbox to connect to the C2
     1) While the dropbox can establish a tunnel with the C2, it can not execute commands on C2
@@ -64,3 +64,10 @@ The most common use case is to run this script on an engagement specific Kali in
     1) Enables services on ISO
     1) Asks you if you want to copy a Nessus binary to ISO (optional)
     1) Builds ISO    
+    
+    
+# Acknowledgements 
+https://www.offensive-security.com/kali-linux/kali-rolling-iso-of-doom/
+https://www.offensive-security.com/kali-linux/kali-linux-iso-of-doom/
+https://www.blackhillsinfosec.com/how-to-build-your-own-penetration-testing-drop-box/
+
