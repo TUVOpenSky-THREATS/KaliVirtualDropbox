@@ -67,7 +67,7 @@ The most common use case is to run this script on an engagement specific Kali in
     
     
 # Acknowledgements 
-https://www.offensive-security.com/kali-linux/kali-rolling-iso-of-doom/
-https://www.offensive-security.com/kali-linux/kali-linux-iso-of-doom/
-https://www.blackhillsinfosec.com/how-to-build-your-own-penetration-testing-drop-box/
+* https://www.offensive-security.com/kali-linux/kali-rolling-iso-of-doom/
+* https://www.offensive-security.com/kali-linux/kali-linux-iso-of-doom/
+* https://www.blackhillsinfosec.com/how-to-build-your-own-penetration-testing-drop-box/
 
