@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 
-# https://askubuntu.com/questions/15853/how-can-a-script-check-if-its-being-run-as-root
+#Check root
 if [[ $EUID -ne 0 ]]; then
    echo "This script must be run as root"
    exit 1
 fi
 
+#TODO replace with getopts
 read -p "Is this your C2 server? (y/n): " IS_C2_ANSWER
 if [ "$IS_C2_ANSWER" == "y" ] || [ "$IS_C2_ANSWER" == "Y" ] || [ "$IS_C2_ANSWER" == "Yes" ] || [ "$IS_C2_ANSWER" == "yes" ]; then
 
@@ -16,18 +17,23 @@ else
     echo "Could not read answer. Exiting..."
     exit 1
 fi
+
+#################
+#TODO Globals
+#################
+
 #################
 #Server setup
 #################
 
-#This is the SSH key that will be saved to the client.
+#SSH key that will be saved to the client.
 SSH_KEY="/tmp/id_rsa"
 ssh-keygen -b 2048 -t rsa -f "$SSH_KEY" -q -N ""
 
 ##########################
 #Lack of indents here are for readability of the HERE DOCUMENTS (EOF/EOSCRIPT)
 ##########################
-# If this script is being run on teh C2 server, just create the config files and drop them in the right places.
+# If this script is being run on the C2 server, just create the config files and drop them in the right places.
 
 SSH_PUBKEY_CONTENTS=`cat $SSH_KEY.pub`
 SSH_PRIVKEY_CONTENTS=`cat $SSH_KEY.pub`
@@ -41,14 +47,15 @@ cat << EOF > /etc/stunnel/stunnel.conf
 cert = /etc/stunnel/stunnel.pem
 client = no
 pid = /etc/stunnel/stunnel.pid
+output = /etc/stunnel/stunnel.log
 
 [ssl_tunnel]
-accept = 443
+accept = 0.0.0.0:443
 connect = 22
 EOF
 
 #Start stunnel on server
-stunnel
+stunnel4
 
 #Add user autossh without a password ( you will need to set the password as a priv user if you need/want to log into this account
 adduser --disabled-password --gecos "" --shell /bin/rbash autossh
@@ -71,14 +78,15 @@ echo "[+] Creating stunnel.conf (server config)"
 cat << EOF > /etc/stunnel/stunnel.conf
 cert = /etc/tunnel/stunnel.pem
 client = no
+output = /etc/stunnel/stunnel.log
 
 [ssl_tunnel]
-accept = 443
+accept = 0.0.0.0:443
 connect = 22
 EOF
 
 echo "[+] Starting stunnel on server"
-stunnel
+stunnel4
 
 echo "[+] Adding user autossh without a password (you will need to set the password as a priv user if you need/want to log into this account)"
 adduser --disabled-password --gecos "" autossh
@@ -93,7 +101,6 @@ EOSCRIPT
 
 chmod +x c2_setup.sh
 fi
-#########################
 
 #################
 #Client Setup
@@ -110,6 +117,7 @@ fi
 
 #If still no IP, give up
 if [ -z "$C2IP" ]; then
+	echo "Could not determine public IP. Exiting.." >&2
 	exit 1
 fi
 
@@ -121,66 +129,102 @@ ROOT_PW=`tr -cd '[:alnum:]' < /dev/urandom | fold -w20 | head -n1`
 apt update
 apt install git live-build cdebootstrap curl -y
 cd /opt
-git clone git://git.kali.org/live-build-config.git build
+git clone https://gitlab.com/kalilinux/build-scripts/live-build-config.git build
 cd /opt/build
 
-mkdir -p /opt/build/kali-config/variant-default/package-lists/
+#Prepare live environment with specific tools needed for the engagement
+mkdir -p /opt/build/kali-config/variant-mate/package-lists/
 mkdir -p /opt/build/kali-config/common/includes.binary/isolinux/
-mkdir -p /opt/build/kali-config/common/hooks/
+mkdir -p /opt/build/kali-config/common/hooks/live/
 mkdir -p /opt/build/kali-config/common/includes.installer/
-mkdir -p /opt/build/kali-config/common/includes.chroot/root/.ssh/
+mkdir -p /opt/build/kali-config/common/includes.chroot/home/kali/.ssh/
 mkdir -p /opt/build/kali-config/common/includes.chroot/usr/local/bin/
 mkdir -p /opt/build/kali-config/common/includes.chroot/etc/cron.d/
 mkdir -p /opt/build/kali-config/common/includes.chroot/etc/stunnel/
 mkdir -p /opt/build/kali-config/common/includes.chroot/usr/local/bin/
 mkdir -p /opt/build/kali-config/common/includes.chroot/etc/network/interfaces.d/
+mkdir -p /opt/build/kali-config/common/includes.chroot/etc/systemd/system
 mkdir -p /opt/build/kali-config/common/includes.chroot/etc/ssh/
 mkdir -p /opt/build/kali-config/common/packages.chroot
 sleep 2
 
-#Specify which tools to auto install in the client ISO
-cat << EOF > /opt/build/kali-config/variant-default/package-lists/kali.list.chroot
-kali-linux-full
+#Toolsets to auto install in the client ISO
+#Most variants come preloaded with kali-linux-core,kali-desktop-live,kali-linux-default, and kali-desktop-{variant}
+#To add more metapackages, select them from https://tools.kali.org/kali-metapackages and add below
+cat << EOF >> /opt/build/kali-config/variant-mate/package-lists/kali.list.chroot
 stunnel4
 autossh
+powershell
 EOF
 
 
 #copy public/private keys to VM so that the DropBox can make the autossh connection back to the C2 server
-cp "$SSH_KEY" /opt/build/kali-config/common/includes.chroot/root/.ssh/
-cp "$SSH_KEY".pub /opt/build/kali-config/common/includes.chroot/root/.ssh/
+cp "$SSH_KEY" /opt/build/kali-config/common/includes.chroot/home/kali/.ssh/
+cp "$SSH_KEY".pub /opt/build/kali-config/common/includes.chroot/home/kali/.ssh/
 
 #copy public key to authorized keys on the VM/dropbox so that we can ssh in to the VM/DropBox with the private key
-cp "$SSH_KEY".pub  /opt/build/kali-config/common/includes.chroot/root/.ssh/authorized_keys
+cp "$SSH_KEY".pub  /opt/build/kali-config/common/includes.chroot/home/kali/.ssh/authorized_keys
 
-#populate stunnel on client
+#stunnel config on client
 cat << EOF > /opt/build/kali-config/common/includes.chroot/etc/stunnel/stunnel.conf
 pid = /var/run/stunnel.pid
 client=yes
 [ssh]
-accept = 43434
+accept = 127.0.0.1:43434
 connect = ${C2IP}:${C2PORT}
 EOF
 
-# This is the script that gets called by crontab.
-# The ssh-keyscan line prevents the ssh connection over stunnel from getting stuck asing the user to accept the key (there is no user)
-# There has to be a better to do that. This just overwrites the file every time the script is called.  A one time thing would be better.
-cat << EOF > /opt/build/kali-config/common/includes.chroot/usr/local/bin/autossh_stunnel.sh
-ssh-keyscan -H -p 43434 127.0.0.1 > /root/.ssh/known_hosts
-/usr/bin/autossh -N -f -M 11166 -o "PubkeyAuthentication=yes" -o "PasswordAuthentication=no" -i /root/.ssh/id_rsa -R 9999:127.0.0.1:22 autossh@127.0.0.1 -p43434
+#################
+#Systemd
+#################
+
+cat << EOF > /opt/build/kali-config/common/includes.chroot/etc/systemd/system/autossh.service
+[Unit]
+Description=Autossh
+Wants=network-online.target
+Requires=stunnel.service
+Requires=ssh.service
+After=network-online.target ssh.service
+;StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Environment="AUTOSSH_GATETIME=0"
+ExecStart=/usr/bin/autossh -M0 \
+-o "ServerAliveInterval 10" -o "ServerAliveCountMax 3" \
+-o "ConnectTimeout 10" -o "ExitOnForwardFailure yes" \
+-o "PubkeyAuthentication=yes" -o "PasswordAuthentication=no" \
+-o "StrictHostKeyChecking=accept-new" \
+-N \
+-i /home/kali/.ssh/id_rsa \
+-R 9999:127.0.0.1:22 autossh@127.0.0.1 -p43434
+;Restart=always
+;RestartSec=10
+ExecStop=/usr/bin/killall autossh
+
+[Install]
+WantedBy=multi-user.target
 EOF
 
-chmod +x /opt/build/kali-config/common/includes.chroot/usr/local/bin/autossh_stunnel.sh
+cat << EOF > /opt/build/kali-config/common/includes.chroot/etc/systemd/system/stunnel.service
+[Unit]
+Description=SSLTunnel
+Wants=network-online.target
+Before=autossh.service
+After=network-online.target
 
-#Set up the crontab
-# The second line is another hack.  For some reason even though the reverse tunnel was established on the server side, I couldnt connect to the new VM until i restarted SSH.
-# This hack just restarts it every 5 minutes.  In theory, after you connect to the client the first time, you should commment out the ssh restart line (but i don't think it matters much if you don't)
-cat << EOF > /opt/build/kali-config/common/includes.chroot/etc/cron.d/autossh_stunnel
-* * * * * root /usr/local/bin/autossh_stunnel.sh
-*/5 * * * * root /etc/init.d/ssh restart
+[Service]
+Type=forking
+ExecStart=/usr/bin/stunnel4 /etc/stunnel/stunnel.conf
+ExecStop=/usr/bin/killall stunnel4
+Restart=always
+RestartSec=8
+
+[Install]
+WantedBy=multi-user.target
 EOF
 
-#taken from Kali ISO of doom: https://www.offensive-security.com/kali-linux/kali-rolling-iso-of-doom/
+#Add a customised syslinux boot entry which includes a boot parameter for a custom preseed file. This will insure that Kali autoboots into an installation.
 cat << EOF > /opt/build/kali-config/common/includes.binary/isolinux/install.cfg
 label install
 menu label ^Install
@@ -189,22 +233,22 @@ initrd /install/initrd.gz
 append vga=788 -- quiet file=/cdrom/install/preseed.cfg locale=en_US keymap=us hostname=KaliVirtualDropbox domain=local.lan
 EOF
 
-#taken from Kali ISO of doom: https://www.offensive-security.com/kali-linux/kali-rolling-iso-of-doom/
+#Directives which override the default ui prompt. Goes straight into the live mode entry post-grub
 cat << EOF > /opt/build/kali-config/common/includes.binary/isolinux/isolinux.cfg
 include menu.cfg
 ui vesamenu.c32
-default install
+default live-
 prompt 0
 timeout 5
 EOF
 
-# For some reason while networking worked during hte installer, when the OS was first booted, there was no ethernet adapter active.  This is the fix/hack
+#Insure that the default network interface is alive on boot.
 cat << EOF > /opt/build/kali-config/common/includes.chroot/etc/network/interfaces.d/eth0
 auto eth0
 iface eth0 inet dhcp
 EOF
 
-#special sauce for ssh service on client machine.
+#Client SSH Config
 cat << EOF > /opt/build/kali-config/common/includes.chroot/etc/ssh/sshd_config
 Port 22
 Protocol 2
@@ -227,71 +271,45 @@ ClientAliveInterval 180
 UseDNS no
 EOF
 
-#concept taken from Kali ISO of doom: https://www.offensive-security.com/kali-linux/kali-rolling-iso-of-doom/.  Modified to support autossh over stunnel
-echo 'update-rc.d -f ssh enable' > /opt/build/kali-config/common/hooks/01-start-ssh.chroot
-echo 'update-rc.d -f autossh enable' > /opt/build/kali-config/common/hooks/01-start-autossh.chroot
-echo 'update-rc.d -f stunnel4 enable' > /opt/build/kali-config/common/hooks/01-start-stunnel4.chroot
+#################
+#Hooks
+#################
 
-#taken from Kali ISO of doom: https://www.offensive-security.com/kali-linux/kali-rolling-iso-of-doom/
-chmod +x /opt/build/kali-config/common/hooks/*.chroot
+#systemd soft links via live hooking to autostart custom services
+echo 'systemctl enable ssh' > /opt/build/kali-config/common/hooks/live/ssh.hook.chroot
+echo 'systemctl enable stunnel' > /opt/build/kali-config/common/hooks/live/stunnel.hook.chroot
+echo 'systemctl enable autossh' > /opt/build/kali-config/common/hooks/live/autossh.hook.chroot
+#Host keys are blank on start
+echo '/usr/bin/ssh-keygen -A' > /opt/build/kali-config/common/hooks/live/sshKeygen.hook.chroot
+chmod +x /opt/build/kali-config/common/hooks/live/*.hook.chroot
 
-#concept taken from Kali ISO of doom: https://www.offensive-security.com/kali-linux/kali-rolling-iso-of-doom/.  Modified to support unique password for every VM.
-wget https://www.kali.org/dojo/preseed.cfg -O /opt/build/kali-config/common/includes.installer/preseed.cfg
+#Default preseed file is leveraged, which will run through a default Kali installation with no input (unattended).
 sed -i "s/hostname string kali/hostname string KaliVirtualDropbox/" /opt/build/kali-config/common/includes.installer/preseed.cfg
+
+#TODO fix - preseed currently doesnt support root login, rn it's kali/kali. Support unique password for every VM.
 sed -i "s/root-password-again password toor/root-password-again password $ROOT_PW/" /opt/build/kali-config/common/includes.installer/preseed.cfg
 sed -i "s/root-password password toor/root-password password $ROOT_PW/" /opt/build/kali-config/common/includes.installer/preseed.cfg
 
-ask_for_nessus_path() {
-    echo ""
-    echo "Almost time to build the image!  Do you have a nessus deb you want to add to the ISO?"
-    read -e -p "If yes, specify the location. If no, hit enter: " NESSUS_PATH
-    if [ -n "$NESSUS_PATH" ]; then
-        if [ -f $NESSUS_PATH ]; then
-            #got build errors, but amazingly someone figured out how and posted it on github.
-            #Turns out the nessus package name is capitalized and for the iso it all needs to be lowercase
-            #https://gist.github.com/kafkaesqu3/81f320ebfc8583603c679222edc464ac
-            mkdir temp
-            dpkg-deb --raw-extract $NESSUS_PATH temp
-            sed "s/Package: Nessus/Package: nessus/" -i temp/DEBIAN/control
-            dpkg-deb -b temp nessus.deb
-            cp nessus.deb /opt/build/kali-config/common/packages.chroot/
-            return
-        else
-            echo "You typed something, but it wasn't a file! Try again?"
-            ask_for_nessus_path
-        fi
-    else
-        echo "Skipping nessus addition to ISO image"
-        echo
-        return
-    fi
-}
-
-ask_for_nessus_path
-
-
-
-
-#This is the part that builds the ISO. THis is gonna take a while!
+#Build the ISO. 
+echo "Please be patient while the ISO is built...\n"
 cd /opt/build/
-/opt/build/build.sh --distribution kali-rolling --verbose
-mv /opt/build/images/kali-linux-rolling-amd64.iso /opt/build/images/KaliVirtualDropbox.iso
-clear
+/opt/build/build.sh --distribution kali-rolling --variant mate --verbose
+#mv /opt/build/images/kali-linux-rolling-amd64.iso /opt/build/images/KaliVirtualDropbox.iso
 echo ""
 if [ "$IS_C2" == "True" ]; then
     echo ""
     echo "  *******************************************************************"
-    echo "  *         Your custom Kali virtual dropbox ISO is ready!          *"
+    echo "  *                             ISO Ready                           *"
     echo "  *******************************************************************"
     echo ""
-    echo "[+] The root password on this ISO is: " $ROOT_PW
+#    echo "[+] The root password on this ISO is: " $ROOT_PW
     echo "[+] The IP that your Kali Virtual Dropbox will reach out to is: " $C2IP
     echo ""
     echo "[+] On the C2 server:"
     echo ""
     echo "[+]   1) The user autossh does not have a password set."
     echo "[+]      To set it, type: sudo passwd autossh (this is not required for the callback to work)"
-    echo "[+]   2) Your image can be found here: /opt/build/images/KaliVirtualDropbox.iso"
+    echo "[+]   2) Your image can be found here: /opt/build/images/"
     echo "[+]   3) Serve it up with something like simple-https-server: https://gist.github.com/dergachev/7028596"
     echo ""
     echo "[+] That's it. Now have your remote contact install the ISO on a VM, bootable USB, or on hardware."
@@ -302,8 +320,8 @@ if [ "$IS_C2" == "True" ]; then
     echo "[+] The stunnel service has been configured and started"
     echo ""
     echo "[+] SSH to your dropbox:"
-    echo "       With key:      sudo ssh root@localhost -p9999 -i /root/.ssh/dropbox.key"
-    echo "       With password: ssh root@localhost -p9999"
+    echo "       With key:      sudo ssh kali@localhost -p9999 -i /root/.ssh/dropbox.key"
+    echo "       With password: ssh kali@localhost -p9999"
     echo ""
 else
     echo "  1) Copy the following script to the c2 server and run it: "
