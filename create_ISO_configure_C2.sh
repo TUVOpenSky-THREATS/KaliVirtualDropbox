@@ -36,7 +36,7 @@ ssh-keygen -b 2048 -t rsa -f "$SSH_KEY" -q -N ""
 # If this script is being run on the C2 server, just create the config files and drop them in the right places.
 
 SSH_PUBKEY_CONTENTS=`cat $SSH_KEY.pub`
-SSH_PRIVKEY_CONTENTS=`cat $SSH_KEY.pub`
+SSH_PRIVKEY_CONTENTS=`cat $SSH_KEY`
 
 if [ "$IS_C2" == "True" ]; then
 #Create self signed cert for stunnel
