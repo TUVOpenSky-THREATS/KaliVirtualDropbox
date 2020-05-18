@@ -76,7 +76,7 @@ openssl req -new -x509 -keyout /etc/stunnel/stunnel.pem -out /etc/stunnel/stunne
 
 echo "[+] Creating stunnel.conf (server config)"
 cat << EOF > /etc/stunnel/stunnel.conf
-cert = /etc/tunnel/stunnel.pem
+cert = /etc/stunnel/stunnel.pem
 client = no
 output = /etc/stunnel/stunnel.log
 
