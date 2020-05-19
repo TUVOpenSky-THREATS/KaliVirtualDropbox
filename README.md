@@ -1,6 +1,6 @@
 # KaliVirtualDropbox
 
-**Kali ISO of DOOM** + **autossh & stunnel** + **Kali C2 Server** = **KaliVirtualDropbox**  
+**autossh & stunnel** + **Kali C2 Server** = **KaliVirtualDropbox**  
 
 Create a Kali virtual dropbox appliance (ISO) for use during remote Vulnerability Assessments and Penetration tests that auto installs without any user interaction, and calls home to your C2 server using unique shared secrets.  
 
@@ -67,7 +67,8 @@ The most common use case is to run this script on an engagement specific Kali in
     
     
 # Acknowledgements 
+* https://www.kali.org/docs/development/live-build-a-custom-kali-iso/
+* https://www.kali.org/docs/development/dojo-mastering-live-build/
 * https://www.offensive-security.com/kali-linux/kali-rolling-iso-of-doom/
-* https://www.offensive-security.com/kali-linux/kali-linux-iso-of-doom/
 * https://www.blackhillsinfosec.com/how-to-build-your-own-penetration-testing-drop-box/
 
