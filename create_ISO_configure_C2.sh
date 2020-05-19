@@ -136,7 +136,7 @@ PS3="Please select Kali live variant: "
 select variant in "${VARIANTS[@]}"; do
     for item in "${VARIANTS[@]}"; do
         if [[ $item == $variant ]]; then
-        break 2
+            break 2
         fi
     done
 done
