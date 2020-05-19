@@ -111,14 +111,14 @@ C2IP=$1
 
 #If the IP was not sent via the command line, grab it from the aws metadata service
 if [ -z "$C2IP" ]; then
-	C2IP=`curl ifconfig.me`
-	echo $C2IP
+        C2IP=`curl ifconfig.me`
+        echo $C2IP
 fi
 
 #If still no IP, give up
 if [ -z "$C2IP" ]; then
-	echo "Could not determine public IP. Exiting.." >&2
-	exit 1
+        echo "Could not determine public IP. Exiting.." >&2
+        exit 1
 fi
 
 #Set the stunnel port
@@ -132,8 +132,20 @@ cd /opt
 git clone https://gitlab.com/kalilinux/build-scripts/live-build-config.git build
 cd /opt/build
 
+VARIANTS=( $(find /opt/build/kali-config/ -maxdepth 1 -type d -iname "variant*" | grep -o '[^-]*'$) )
+PS3="Please select Kali live variant: "
+select variant in "${VARIANTS[@]}"; do
+  for item in "${VARIANTS[@]}"; do
+    if [[ $item == $variant ]]; then
+      break 2
+    fi
+  done
+done
+echo "VARIANT=$variant"
+VARIANT=$variant
+
 #Prepare live environment with specific tools needed for the engagement
-mkdir -p /opt/build/kali-config/variant-mate/package-lists/
+mkdir -p /opt/build/kali-config/variant-$VARIANT/package-lists/
 mkdir -p /opt/build/kali-config/common/includes.binary/isolinux/
 mkdir -p /opt/build/kali-config/common/hooks/live/
 mkdir -p /opt/build/kali-config/common/includes.installer/
@@ -151,7 +163,7 @@ sleep 2
 #Toolsets to auto install in the client ISO
 #Most variants come preloaded with kali-linux-core,kali-desktop-live,kali-linux-default, and kali-desktop-{variant}
 #To add more metapackages, select them from https://tools.kali.org/kali-metapackages and add below
-cat << EOF >> /opt/build/kali-config/variant-mate/package-lists/kali.list.chroot
+cat << EOF >> /opt/build/kali-config/variant-$VARIANT/package-lists/kali.list.chroot
 stunnel4
 autossh
 powershell
@@ -293,7 +305,7 @@ sed -i "s/root-password password toor/root-password password $ROOT_PW/" /opt/bui
 #Build the ISO. 
 echo "Please be patient while the ISO is built...\n"
 cd /opt/build/
-/opt/build/build.sh --distribution kali-rolling --variant mate --verbose
+/opt/build/build.sh --distribution kali-rolling --variant $VARIANT --verbose
 #mv /opt/build/images/kali-linux-rolling-amd64.iso /opt/build/images/KaliVirtualDropbox.iso
 echo ""
 if [ "$IS_C2" == "True" ]; then
