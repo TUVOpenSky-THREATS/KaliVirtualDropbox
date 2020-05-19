@@ -9,7 +9,6 @@ fi
 #TODO replace with getopts
 read -p "Is this your C2 server? (y/n): " IS_C2_ANSWER
 if [ "$IS_C2_ANSWER" == "y" ] || [ "$IS_C2_ANSWER" == "Y" ] || [ "$IS_C2_ANSWER" == "Yes" ] || [ "$IS_C2_ANSWER" == "yes" ]; then
-
     IS_C2="True"
 elif [ "$IS_C2_ANSWER" == "n" ] || [ "$IS_C2_ANSWER" == "N" ] || [ "$IS_C2_ANSWER" == "No" ] || [ "$IS_C2_ANSWER" == "no" ]; then
     IS_C2="False"
