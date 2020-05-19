@@ -9,7 +9,6 @@ fi
 #TODO replace with getopts
 read -p "Is this your C2 server? (y/n): " IS_C2_ANSWER
 if [ "$IS_C2_ANSWER" == "y" ] || [ "$IS_C2_ANSWER" == "Y" ] || [ "$IS_C2_ANSWER" == "Yes" ] || [ "$IS_C2_ANSWER" == "yes" ]; then
-
     IS_C2="True"
 elif [ "$IS_C2_ANSWER" == "n" ] || [ "$IS_C2_ANSWER" == "N" ] || [ "$IS_C2_ANSWER" == "No" ] || [ "$IS_C2_ANSWER" == "no" ]; then
     IS_C2="False"
@@ -111,14 +110,14 @@ C2IP=$1
 
 #If the IP was not sent via the command line, grab it from the aws metadata service
 if [ -z "$C2IP" ]; then
-        C2IP=`curl ifconfig.me`
-        echo $C2IP
+    C2IP=`curl ifconfig.me`
+    echo $C2IP
 fi
 
 #If still no IP, give up
 if [ -z "$C2IP" ]; then
-        echo "Could not determine public IP. Exiting.." >&2
-        exit 1
+    echo "Could not determine public IP. Exiting.." >&2
+    exit 1
 fi
 
 #Set the stunnel port
@@ -135,11 +134,11 @@ cd /opt/build
 VARIANTS=( $(find /opt/build/kali-config/ -maxdepth 1 -type d -iname "variant*" | grep -o '[^-]*'$) )
 PS3="Please select Kali live variant: "
 select variant in "${VARIANTS[@]}"; do
-  for item in "${VARIANTS[@]}"; do
-    if [[ $item == $variant ]]; then
-      break 2
-    fi
-  done
+    for item in "${VARIANTS[@]}"; do
+        if [[ $item == $variant ]]; then
+        break 2
+        fi
+    done
 done
 echo "VARIANT=$variant"
 VARIANT=$variant
