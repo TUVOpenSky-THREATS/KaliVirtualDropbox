@@ -9,6 +9,7 @@ fi
 #TODO replace with getopts
 read -p "Is this your C2 server? (y/n): " IS_C2_ANSWER
 if [ "$IS_C2_ANSWER" == "y" ] || [ "$IS_C2_ANSWER" == "Y" ] || [ "$IS_C2_ANSWER" == "Yes" ] || [ "$IS_C2_ANSWER" == "yes" ]; then
+
     IS_C2="True"
 elif [ "$IS_C2_ANSWER" == "n" ] || [ "$IS_C2_ANSWER" == "N" ] || [ "$IS_C2_ANSWER" == "No" ] || [ "$IS_C2_ANSWER" == "no" ]; then
     IS_C2="False"
@@ -110,14 +111,14 @@ C2IP=$1
 
 #If the IP was not sent via the command line, grab it from the aws metadata service
 if [ -z "$C2IP" ]; then
-    C2IP=`curl ifconfig.me`
-    echo $C2IP
+	C2IP=`curl ifconfig.me`
+	echo $C2IP
 fi
 
 #If still no IP, give up
 if [ -z "$C2IP" ]; then
-    echo "Could not determine public IP. Exiting.." >&2
-    exit 1
+	echo "Could not determine public IP. Exiting.." >&2
+	exit 1
 fi
 
 #Set the stunnel port
@@ -127,21 +128,38 @@ ROOT_PW=`tr -cd '[:alnum:]' < /dev/urandom | fold -w20 | head -n1`
 #Update the c2 box with the tools it needs to build an ISO
 apt update
 apt install git live-build cdebootstrap curl -y
+apt install dialog
 cd /opt
 git clone https://gitlab.com/kalilinux/build-scripts/live-build-config.git build
 cd /opt/build
 
+#Variant Selection
 VARIANTS=( $(find /opt/build/kali-config/ -maxdepth 1 -type d -iname "variant*" | grep -o '[^-]*'$) )
-PS3="Please select Kali live variant: "
+PS3="Select Kali live variant: "
 select variant in "${VARIANTS[@]}"; do
-    for item in "${VARIANTS[@]}"; do
-        if [[ $item == $variant ]]; then
-            break 2
-        fi
-    done
+  for item in "${VARIANTS[@]}"; do
+    if [[ $item == $variant ]]; then
+      break 2
+    fi
+  done
 done
 echo "VARIANT=$variant"
 VARIANT=$variant
+
+#Metapackage Selection
+METAPACKAGES=($(sudo apt-get -qq update && apt-cache --quiet search kali-linux | cut -d " " -f1))
+#adding an integer for the non-visible description column of dialog
+METAOPTS=""; i=0;
+for item in "${METAPACKAGES[@]}"; do i=$((i+1)); METAOPTS="$METAOPTS$(echo $item) $(echo $i) ";done;
+METAOPTS=(${METAOPTS[@]})
+DIALOG_CMD=(dialog --stdout --no-items \
+	--backtitle "Select Kali Metapackages with <SPACE>." \
+	--title "Kali Metapackages" \
+        --separate-output \
+        --ok-label "Confirm" \
+        --checklist "Select Kali Metapackages with <SPACE>" 22 76 16)
+	METAPACKAGE_SELECTIONS=($("${DIALOG_CMD[@]}" "${METAOPTS[@]}"))
+
 
 #Prepare live environment with specific tools needed for the engagement
 mkdir -p /opt/build/kali-config/variant-$VARIANT/package-lists/
@@ -167,6 +185,9 @@ stunnel4
 autossh
 powershell
 EOF
+for metapackage in "${METAPACKAGE_SELECTIONS[@]}"; do
+    echo "$metapackage" >> /opt/build/kali-config/variant-$VARIANT/package-lists/kali.list.chroot
+done
 
 
 #copy public/private keys to VM so that the DropBox can make the autossh connection back to the C2 server
