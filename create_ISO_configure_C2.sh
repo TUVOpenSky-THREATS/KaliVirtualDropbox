@@ -34,13 +34,14 @@ ssh-keygen -b 2048 -t rsa -f "$SSH_KEY" -q -N ""
 ##########################
 # If this script is being run on the C2 server, just create the config files and drop them in the right places.
 
-SSH_PUBKEY_CONTENTS=`cat $SSH_KEY.pub`
-SSH_PRIVKEY_CONTENTS=`cat $SSH_KEY`
+SSH_PUBKEY_CONTENTS=$(cat $SSH_KEY.pub)
+SSH_PRIVKEY_CONTENTS=$(cat $SSH_KEY)
 
 if [ "$IS_C2" == "True" ]; then
 #Create self signed cert for stunnel
 openssl req -new -x509 -keyout /etc/stunnel/stunnel.pem -out /etc/stunnel/stunnel.pem -days 365 -nodes -subj "/C=US" >/dev/null 2>&1
 
+#TODO set connect to localhost to prevent ANY_ADDR Leakage
 #Create stunnel.conf (server config)
 cat << EOF > /etc/stunnel/stunnel.conf
 cert = /etc/stunnel/stunnel.pem
@@ -61,7 +62,7 @@ adduser --disabled-password --gecos "" --shell /bin/rbash autossh
 mkdir -p /home/autossh/.ssh/
 
 
-#Copy the public key that we are dropping on the client to the server and add it to the authorized keys file on the C2 server which is what allows the client to connect automatically to the server
+#Copy the public key that will be dropped on the client to connect back, and add it to the authorized keys file on the C2 server; allowing the client to connect automatically to the server
 echo "command=\"\"" $SSH_PUBKEY_CONTENTS >> /home/autossh/.ssh/authorized_keys
 cp $SSH_KEY ~/.ssh/dropbox.key
 
@@ -110,7 +111,7 @@ C2IP=$1
 
 #If the IP was not sent via the command line, grab it from the aws metadata service
 if [ -z "$C2IP" ]; then
-    C2IP=`curl ifconfig.me`
+    C2IP=$(curl ifconfig.me)
     echo $C2IP
 fi
 
@@ -122,7 +123,7 @@ fi
 
 #Set the stunnel port
 C2PORT="443"
-ROOT_PW=`tr -cd '[:alnum:]' < /dev/urandom | fold -w20 | head -n1`
+ROOT_PW=$(tr -cd '[:alnum:]' < /dev/urandom | fold -w20 | head -n1)
 
 #Update the c2 box with the tools it needs to build an ISO
 apt update
@@ -188,6 +189,8 @@ for metapackage in "${METAPACKAGE_SELECTIONS[@]}"; do
     echo "$metapackage" >> /opt/build/kali-config/variant-$VARIANT/package-lists/kali.list.chroot
 done
 
+#ensure ssh is running
+systemctl start sshd
 
 #copy public/private keys to VM so that the DropBox can make the autossh connection back to the C2 server
 cp "$SSH_KEY" /opt/build/kali-config/common/includes.chroot/home/kali/.ssh/
@@ -195,6 +198,11 @@ cp "$SSH_KEY".pub /opt/build/kali-config/common/includes.chroot/home/kali/.ssh/
 
 #copy public key to authorized keys on the VM/dropbox so that we can ssh in to the VM/DropBox with the private key
 cp "$SSH_KEY".pub  /opt/build/kali-config/common/includes.chroot/home/kali/.ssh/authorized_keys
+
+#add known host to dropbox to enforce strict host checking for each handshake]
+#edit: stunnel auto bypasses strict host key checking and auto-drops known hosts in root's home, since the systemd units are built/run as root.
+#TODO : either replace stunnel with go-http-tunnel, or create the systemd units at the user level, or both
+#ssh-keyscan -t rsa 127.0.0.1 | sed -r "s/127.0.0.1/$C2IP/g" > /opt/build/kali-config/common/includes.chroot/home/kali/.ssh/known_hosts
 
 #stunnel config on client
 cat << EOF > /opt/build/kali-config/common/includes.chroot/etc/stunnel/stunnel.conf
@@ -225,7 +233,7 @@ ExecStart=/usr/bin/autossh -M0 \
 -o "ServerAliveInterval 10" -o "ServerAliveCountMax 3" \
 -o "ConnectTimeout 10" -o "ExitOnForwardFailure yes" \
 -o "PubkeyAuthentication=yes" -o "PasswordAuthentication=no" \
--o "StrictHostKeyChecking=accept-new" \
+-o "StrictHostKeyChecking=yes" \
 -N \
 -i /home/kali/.ssh/id_rsa \
 -R 9999:127.0.0.1:22 autossh@127.0.0.1 -p43434
@@ -289,7 +297,7 @@ ServerKeyBits 1024
 SyslogFacility AUTH
 LogLevel INFO
 LoginGraceTime 120
-PermitRootLogin yes
+PermitRootLogin no
 PermitEmptyPasswords no
 ChallengeResponseAuthentication no
 PrintMotd no
@@ -317,7 +325,8 @@ chmod +x /opt/build/kali-config/common/hooks/live/*.hook.chroot
 #Default preseed file is leveraged, which will run through a default Kali installation with no input (unattended).
 sed -i "s/hostname string kali/hostname string KaliVirtualDropbox/" /opt/build/kali-config/common/includes.installer/preseed.cfg
 
-#TODO fix - preseed currently doesnt support root login, rn it's kali/kali. Support unique password for every VM.
+#TODO - preseed currently doesnt support root login, rn it's kali/kali. Support unique password for every VM. 
+#theoretically a live hook could just execute $(usermod --password $ROOT_PW kali) rather than using debo installer seeds
 sed -i "s/root-password-again password toor/root-password-again password $ROOT_PW/" /opt/build/kali-config/common/includes.installer/preseed.cfg
 sed -i "s/root-password password toor/root-password password $ROOT_PW/" /opt/build/kali-config/common/includes.installer/preseed.cfg
 
@@ -353,6 +362,7 @@ if [ "$IS_C2" == "True" ]; then
     echo "[+] SSH to your dropbox:"
     echo "       With key:      sudo ssh kali@localhost -p9999 -i /root/.ssh/dropbox.key"
     echo "       With password: ssh kali@localhost -p9999"
+    echo "[!] Be warned: ssh is running on the dropbox INADDR_ANY interface with a default password. Change the password immeadeatly."
     echo ""
 else
     echo "  1) Copy the following script to the c2 server and run it: "
