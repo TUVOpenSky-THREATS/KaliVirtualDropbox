@@ -233,12 +233,12 @@ ExecStart=/usr/bin/autossh -M0 \
 -o "ServerAliveInterval 10" -o "ServerAliveCountMax 3" \
 -o "ConnectTimeout 10" -o "ExitOnForwardFailure yes" \
 -o "PubkeyAuthentication=yes" -o "PasswordAuthentication=no" \
--o "StrictHostKeyChecking=yes" \
+-o "StrictHostKeyChecking=accept-new" \
 -N \
 -i /home/kali/.ssh/id_rsa \
 -R 9999:127.0.0.1:22 autossh@127.0.0.1 -p43434
-;Restart=always
-;RestartSec=10
+Restart=on-failure
+RestartSec=10
 ExecStop=/usr/bin/killall autossh
 
 [Install]
@@ -256,7 +256,7 @@ After=network-online.target
 Type=forking
 ExecStart=/usr/bin/stunnel4 /etc/stunnel/stunnel.conf
 ExecStop=/usr/bin/killall stunnel4
-Restart=always
+Restart=on-failure
 RestartSec=8
 
 [Install]
